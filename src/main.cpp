@@ -1,9 +1,17 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
+#include <EncButton.h>
 
 // U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R2, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R2, /* reset=*/ U8X8_PIN_NONE, /* clock=*/ 22, /* data=*/ 21);   // ESP32 Thing, HW I2C with pin remapping
 // 
+
+EncButton ecB(5, 18, 19);
+
+
+void isr() {
+  ecB.tickISR();
+}
 
 #define COUNT(x)  sizeof(x)/sizeof(*x)
 
@@ -11,6 +19,9 @@ U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R2, /* reset=*/ U8X8_PIN_NONE, /* 
 void setup() {
   u8g2.begin();
 
+  attachInterrupt(5, isr, CHANGE);
+  attachInterrupt(18, isr, CHANGE);
+  ecB.setEncISR(true);
   
   u8g2.setFont(u8g2_font_ncenB08_tr);
   u8g2.drawStr(0,10,"Hello World!");
@@ -73,7 +84,7 @@ const unsigned char xbmMENU[itemsMENU][32] U8X8_PROGMEM = //16x16px
 
 
 void loop() {
-  static byte menuSelec = 1;
+  static byte menuSelec = 0;
 
   u8g2.firstPage();
     do{
@@ -84,6 +95,11 @@ void loop() {
             u8g2.setFont(u8g2_font_haxrcorp4089_tr);
             u8g2.setCursor(22, 13);
             u8g2.print(txtMENU[menuSelec-1]);
+        }else{
+            u8g2.drawXBMP(4, 2,  14, 14, xMenuUp);
+            u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+            u8g2.setCursor(22, 13);
+            u8g2.print(txtMENU[itemsMENU-1]);
         }
  
  
@@ -111,14 +127,27 @@ void loop() {
             u8g2.setFont(u8g2_font_haxrcorp4089_tr);
             u8g2.setCursor(22, 58);
             u8g2.print(txtMENU[menuSelec+1]);
+        }else{
+            u8g2.drawXBMP(4, 48, 14, 14, xMenuDown);
+            u8g2.setFont(u8g2_font_haxrcorp4089_tr);
+            u8g2.setCursor(22, 58);
+            u8g2.print(txtMENU[0]);
         }
  
  
         u8g2.drawRFrame(0, 0, 128, 64, 5);
     }
     while( u8g2.nextPage() );
-    delay(1000);
-    menuSelec++;
-    if (menuSelec == itemsMENU) menuSelec = 0;
+    ecB.tick();
+    if (ecB.left()) menuSelec--;
+    if (ecB.right()) menuSelec++;
+
+    if (menuSelec == 255){
+      menuSelec = itemsMENU-1;
+    }else if(menuSelec > itemsMENU-1){
+      menuSelec = 0;
+      }
+
+
 }
 
